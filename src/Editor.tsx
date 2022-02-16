@@ -1,141 +1,187 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { RemirrorJSON } from 'remirror';
-import { YjsExtension, AnnotationExtension } from 'remirror/extensions';
+import { ProsemirrorDevTools } from "@remirror/dev";
 import {
-	EditorComponent,
-	Remirror,
-	ThemeProvider,
-	useRemirror,
-} from '@remirror/react';
-import { ProsemirrorDevTools } from '@remirror/dev';
-import { useDebouncedCallback } from 'use-debounce';
-import useCurrentUser from './hooks/useCurrentUser';
-import useWebRtcProvider from './hooks/useWebRtcProvider';
-import useObservableListener from './hooks/useObservableListener';
-import FloatingAnnotations from './FloatingAnnotations';
-import AnnotationsJSONPrinter from './AnnotationsJSONPrinter';
-import 'remirror/styles/all.css';
+    EditorComponent,
+    Remirror,
+    ThemeProvider,
+    useRemirror,
+} from "@remirror/react";
+import { distance } from "fastest-levenshtein";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { prosemirrorNodeToHtml, RemirrorJSON } from "remirror";
+import { AnnotationExtension, YjsExtension } from "remirror/extensions";
+import "remirror/styles/all.css";
+import { useDebouncedCallback } from "use-debounce";
+import AnnotationsJSONPrinter from "./AnnotationsJSONPrinter";
+import FloatingAnnotations from "./FloatingAnnotations";
+import useCurrentUser from "./hooks/useCurrentUser";
+import useObservableListener from "./hooks/useObservableListener";
+import useWebRtcProvider from "./hooks/useWebRtcProvider";
+import { generateOutput, rules } from "./utils/challenge";
 
 interface EditorProps {
-	documentId: string;
-	onFetch: Function;
-	onSave: Function;
+    documentId: string;
+    onFetch: Function;
+    onSave: Function;
 }
 
 const TIMEOUT = 3000 + Math.floor(Math.random() * 7000);
 
 const Status = ({ success = false }) => (
-	<span className={`status ${success ? 'success' : ''}`}>&nbsp;</span>
+    <span className={`status ${success ? "success" : ""}`}>&nbsp;</span>
 );
 
 function Editor({ documentId, onFetch, onSave }: EditorProps) {
-	const usedFallbackRef = useRef<boolean>(false);
-	const currentUser = useCurrentUser();
-	const provider = useWebRtcProvider(currentUser, documentId);
+    const usedFallbackRef = useRef<boolean>(false);
+    const currentUser = useCurrentUser();
+    const provider = useWebRtcProvider(currentUser, documentId);
 
-	const [clientCount, setClientCount] = useState<number>(0);
-	const [isSynced, setIsSynced] = useState<boolean>(false);
-	const [docState, setDocState] = useState<RemirrorJSON>();
+    const [clientCount, setClientCount] = useState<number>(0);
+    const [isSynced, setIsSynced] = useState<boolean>(false);
+    const [docState, setDocState] = useState<RemirrorJSON>();
 
-	const handleChange = useCallback(
-		({ state, tr }) => {
-			if (tr?.docChanged) {
-				setDocState(state.toJSON().doc);
-			}
-		},
-		[setDocState],
-	);
+    const [requiredOutput, setRequiredOutput] = useState("");
 
-	const handleSave = useCallback(
-		newDocState => {
-			if (isSynced || clientCount === 0) {
-				onSave(documentId, JSON.stringify(newDocState));
-				const meta = provider.doc.getMap('meta');
-				meta.set('lastSaved', Date.now());
-			}
-		},
-		[onSave, documentId, provider.doc, isSynced, clientCount],
-	);
+    const [editsNeeded, setEditsNeeded] = useState(
+        distance(documentId, generateOutput(documentId))
+    );
 
-	const handleSaveDebounced = useDebouncedCallback(handleSave, TIMEOUT);
+    useEffect(() => {
+        const r = generateOutput(documentId);
+        setRequiredOutput(r);
+        setEditsNeeded(distance(documentId, r));
+    }, [documentId]);
 
-	const handlePeersChange = useCallback(
-		({ webrtcPeers }) => {
-			setClientCount(webrtcPeers.length);
-		},
-		[setClientCount],
-	);
+    const [progress, setProgress] = useState(0);
 
-	useObservableListener('peers', handlePeersChange, provider);
+    useEffect(() => {
+        setProgress((documentId.length - editsNeeded) / documentId.length);
+    }, [editsNeeded, documentId]);
 
-	const handleSynced = useCallback(
-		({ synced }) => {
-			setIsSynced(synced);
-		},
-		[setIsSynced],
-	);
+    const handleChange = useCallback(
+        ({ state, tr }) => {
+            if (tr?.docChanged) {
+                const htmlString = prosemirrorNodeToHtml(state.doc);
+                const textString = htmlString.replace(/<[^>]+>/g, "");
+                console.log("html", htmlString);
+                console.log("text", textString);
+                console.log("required", requiredOutput);
 
-	useObservableListener('synced', handleSynced, provider);
+                setEditsNeeded(distance(textString, requiredOutput));
+                setDocState(state.toJSON().doc);
+            }
+        },
+        [setDocState, requiredOutput]
+    );
 
-	useEffect(() => {
-		handleSaveDebounced(docState);
-	}, [handleSaveDebounced, docState]);
+    const handleSave = useCallback(
+        (newDocState) => {
+            if (isSynced || clientCount === 0) {
+                onSave(documentId, JSON.stringify(newDocState));
+                const meta = provider.doc.getMap("meta");
+                meta.set("lastSaved", Date.now());
+            }
+        },
+        [onSave, documentId, provider.doc, isSynced, clientCount]
+    );
 
-	const handleYDocUpdate = useCallback(() => {
-		handleSaveDebounced.cancel();
-	}, [handleSaveDebounced]);
+    const handleSaveDebounced = useDebouncedCallback(handleSave, TIMEOUT);
 
-	useObservableListener('update', handleYDocUpdate, provider.doc);
+    const handlePeersChange = useCallback(
+        ({ webrtcPeers }) => {
+            setClientCount(webrtcPeers.length);
+        },
+        [setClientCount]
+    );
 
-	const createExtensions = useCallback(() => {
-		return [
-			new YjsExtension({
-				getProvider: () => provider,
-			}),
-			new AnnotationExtension(),
-		];
-	}, [provider]);
+    useObservableListener("peers", handlePeersChange, provider);
 
-	const { manager, getContext } = useRemirror({
-		extensions: createExtensions,
-	});
+    const handleSynced = useCallback(
+        ({ synced }) => {
+            setIsSynced(synced);
+        },
+        [setIsSynced]
+    );
 
-	useEffect(() => {
-		if (usedFallbackRef.current) return;
+    useObservableListener("synced", handleSynced, provider);
 
-		const fetchFallback = async () => {
-			if (provider.connected && clientCount === 0) {
-				const res = await onFetch(documentId);
-				getContext()?.setContent(JSON.parse(res));
-			}
-			usedFallbackRef.current = true;
-		};
+    useEffect(() => {
+        handleSaveDebounced(docState);
+    }, [handleSaveDebounced, docState]);
 
-		const timeoutId = window.setTimeout(fetchFallback, 1000);
+    const handleYDocUpdate = useCallback(() => {
+        handleSaveDebounced.cancel();
+    }, [handleSaveDebounced]);
 
-		return () => {
-			window.clearTimeout(timeoutId);
-		};
-	}, [onFetch, documentId, provider.connected, clientCount, getContext]);
+    useObservableListener("update", handleYDocUpdate, provider.doc);
 
-	return (
-		<ThemeProvider>
-			<Remirror manager={manager} onChange={handleChange}>
-				<h3>Remirror with YJS collaborative editing - including annotations</h3>
-				<EditorComponent />
-				<FloatingAnnotations />
-				<ProsemirrorDevTools />
-				<div className="info-box">
-					<p className="info">Connected clients: {clientCount + 1}</p>
-					<p className="info">
-						Synced: <Status success={isSynced || clientCount === 0} />
-					</p>
-				</div>
-				<h3>Current annotations</h3>
-				<AnnotationsJSONPrinter />
-			</Remirror>
-		</ThemeProvider>
-	);
+    const createExtensions = useCallback(() => {
+        return [
+            new YjsExtension({
+                getProvider: () => provider,
+            }),
+            new AnnotationExtension(),
+        ];
+    }, [provider]);
+
+    const { manager, getContext } = useRemirror({
+        extensions: createExtensions,
+    });
+
+    useEffect(() => {
+        if (usedFallbackRef.current) return;
+
+        const fetchFallback = async () => {
+            if (provider.connected && clientCount === 0) {
+                const res = await onFetch(documentId);
+                getContext()?.setContent(JSON.parse(res));
+            }
+            usedFallbackRef.current = true;
+        };
+
+        const timeoutId = window.setTimeout(fetchFallback, 1000);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [onFetch, documentId, provider.connected, clientCount, getContext]);
+
+    return documentId ? (
+        <ThemeProvider>
+            <Remirror manager={manager} onChange={handleChange}>
+                <h3>{documentId}</h3>
+                <div>
+                    {rules.map(({ description }, i) => (
+                        <p key={i}>{description}</p>
+                    ))}
+                </div>
+                <p>
+                    <b>Edits Needed:</b> {editsNeeded}
+                </p>
+                <div>
+                    <progress max="1" value={progress}>{`${Math.floor(
+                        progress * 100
+                    )}%`}</progress>
+                </div>
+                <EditorComponent />
+                <FloatingAnnotations />
+                <ProsemirrorDevTools />
+                <div className="info-box">
+                    <p className="info">Connected clients: {clientCount + 1}</p>
+                    <p className="info">
+                        Synced:{" "}
+                        <Status success={isSynced || clientCount === 0} />
+                    </p>
+                </div>
+                <p>
+                    <b>Answer:</b> {requiredOutput}
+                </p>
+                <h3>Current annotations</h3>
+                <AnnotationsJSONPrinter />
+            </Remirror>
+        </ThemeProvider>
+    ) : (
+        <p>Start a new game</p>
+    );
 }
 
 export default Editor;

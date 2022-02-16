@@ -1,50 +1,79 @@
-import React, { useMemo, useCallback } from 'react';
-import axios from 'axios';
-import { v4 as uuid } from 'uuid';
-import UserProvider, { User } from './UserProvider';
-import Editor from './Editor';
-import getRandomUserName from './utils/getRandomUserName';
+import axios from "axios";
+import { useCallback, useMemo, useState } from "react";
+import { v4 as uuid } from "uuid";
+import Editor from "./Editor";
+import UserProvider, { User } from "./UserProvider";
+import { generateInput } from "./utils/challenge";
+import getRandomUserName from "./utils/getRandomUserName";
 
 interface Document {
-	body: string;
+    body: string;
 }
 
 const api = axios.create({
-	baseURL: 'https://60b9308780400f00177b6434.mockapi.io/yjs-webrtc/v1/',
-	headers: { 'Content-Type': 'application/json' },
+    baseURL: "https://60b9308780400f00177b6434.mockapi.io/yjs-webrtc/v1/",
+    headers: { "Content-Type": "application/json" },
 });
 
 function App() {
-	const currentUser: User = useMemo(() => {
-		const id = uuid();
-		return {
-			id,
-			name: getRandomUserName(id),
-		};
-	}, []);
+    const currentUser: User = useMemo(() => {
+        const id = uuid();
+        return {
+            id,
+            name: getRandomUserName(id),
+        };
+    }, []);
 
-	const handleFetch = useCallback(async id => {
-		const response = await api.get<Document>(`documents/${id}`);
-		return response.data.body;
-	}, []);
+    const handleFetch = useCallback(async (id) => {
+        return {};
+        const response = await api.get<Document>(`documents/${id}`);
+        return response.data.body;
+    }, []);
 
-	const handleSave = useCallback(async (id, body) => {
-		await api.put(`/documents/${id}`, {
-			body,
-		});
-	}, []);
+    const handleSave = useCallback(async (id, body) => {
+        return;
+        await api.put(`/documents/${id}`, {
+            body,
+        });
+    }, []);
 
-	return (
-		<UserProvider.Provider value={currentUser}>
-			<div className="app">
-				<Editor
-					documentId="e575831a-e213-49e2-9092-a604d3e0f654"
-					onFetch={handleFetch}
-					onSave={handleSave}
-				/>
-			</div>
-		</UserProvider.Provider>
-	);
+    const [gameId, setGameId] = useState("");
+
+    const handleNewGame = () => {
+        setGameId(generateInput(16));
+    };
+
+    const [joinGameInput, setJoinGameInput] = useState("");
+
+    const joinGame = () => {
+        setGameId(joinGameInput);
+        setJoinGameInput("");
+    };
+
+    return (
+        <UserProvider.Provider value={currentUser}>
+            <div className="app">
+                <h1>Collaborator</h1>
+                <p>Apply the given rules to the code below.</p>
+                <button onClick={handleNewGame}>New Game</button>
+                <div>
+                    <input
+                        value={joinGameInput}
+                        onChange={({ target }) =>
+                            setJoinGameInput(target.value)
+                        }
+                        type="text"
+                    />
+                    <button onClick={joinGame}>Join Game</button>
+                </div>
+                <Editor
+                    documentId={gameId}
+                    onFetch={handleFetch}
+                    onSave={handleSave}
+                />
+            </div>
+        </UserProvider.Provider>
+    );
 }
 
 export default App;

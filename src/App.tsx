@@ -1,19 +1,9 @@
-import axios from "axios";
 import { useCallback, useMemo, useState } from "react";
 import { v4 as uuid } from "uuid";
 import Editor from "./Editor";
 import UserProvider, { User } from "./UserProvider";
 import { generateInput } from "./utils/challenge";
 import getRandomUserName from "./utils/getRandomUserName";
-
-interface Document {
-    body: string;
-}
-
-const api = axios.create({
-    baseURL: "https://60b9308780400f00177b6434.mockapi.io/yjs-webrtc/v1/",
-    headers: { "Content-Type": "application/json" },
-});
 
 function App() {
     const currentUser: User = useMemo(() => {

@@ -23,7 +23,8 @@ export type Rule = {
 
 export const rules: Rule[] = [
     {
-        description: "flip case if the letter has an odd postion",
+        description:
+            "If it is a letter, and has an odd position in the password, change the case. (i.e. A -> a a -> A)",
         rule: (input) =>
             input
                 .split("")

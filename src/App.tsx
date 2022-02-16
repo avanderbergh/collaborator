@@ -26,15 +26,10 @@ function App() {
 
     const handleFetch = useCallback(async (id) => {
         return {};
-        const response = await api.get<Document>(`documents/${id}`);
-        return response.data.body;
     }, []);
 
     const handleSave = useCallback(async (id, body) => {
         return;
-        await api.put(`/documents/${id}`, {
-            body,
-        });
     }, []);
 
     const [gameId, setGameId] = useState("");

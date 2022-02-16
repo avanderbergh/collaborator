@@ -45,6 +45,8 @@ function Editor({ documentId, onFetch, onSave }: EditorProps) {
         distance(documentId, generateOutput(documentId))
     );
 
+    const [showAnswer, setShowAnswer] = useState(false);
+
     useEffect(() => {
         const r = generateOutput(documentId);
         setRequiredOutput(r);
@@ -172,9 +174,15 @@ function Editor({ documentId, onFetch, onSave }: EditorProps) {
                         <Status success={isSynced || clientCount === 0} />
                     </p>
                 </div>
-                <p>
-                    <b>Answer:</b> {requiredOutput}
-                </p>
+                <button onClick={() => setShowAnswer((prev) => !prev)}>
+                    {showAnswer ? "Hide Answer" : "Show Answer"}
+                </button>
+                {showAnswer && (
+                    <p>
+                        <b>Answer:</b> {requiredOutput}
+                    </p>
+                )}
+
                 <h3>Current annotations</h3>
                 <AnnotationsJSONPrinter />
             </Remirror>

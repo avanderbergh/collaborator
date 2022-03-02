@@ -35,7 +35,7 @@ function Editor({ documentId, onFetch, onSave }: EditorProps) {
     const usedFallbackRef = useRef<boolean>(false);
     const currentUser = useCurrentUser();
     // const provider = useWebRtcProvider(currentUser, documentId);
-    const provider = useRestProvider(documentId);
+    const provider = useRestProvider(currentUser, documentId);
 
     const [clientCount, setClientCount] = useState<number>(0);
     const [isSynced, setIsSynced] = useState<boolean>(false);
@@ -66,9 +66,9 @@ function Editor({ documentId, onFetch, onSave }: EditorProps) {
             if (tr?.docChanged) {
                 const htmlString = prosemirrorNodeToHtml(state.doc);
                 const textString = htmlString.replace(/<[^>]+>/g, "");
-                console.log("html", htmlString);
-                console.log("text", textString);
-                console.log("required", requiredOutput);
+                // console.log("html", htmlString);
+                // console.log("text", textString);
+                // console.log("required", requiredOutput);
 
                 setEditsNeeded(distance(textString, requiredOutput));
                 setDocState(state.toJSON().doc);
@@ -119,6 +119,8 @@ function Editor({ documentId, onFetch, onSave }: EditorProps) {
     useObservableListener("update", handleYDocUpdate, provider.doc);
 
     const createExtensions = useCallback(() => {
+        if (!provider) return [];
+        provider.connect();
         return [
             new YjsExtension({
                 getProvider: () => provider,

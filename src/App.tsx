@@ -51,11 +51,13 @@ function App() {
                     />
                     <button onClick={joinGame}>Join Game</button>
                 </div>
-                <Editor
-                    documentId={gameId}
-                    onFetch={handleFetch}
-                    onSave={handleSave}
-                />
+                {gameId.length > 0 && (
+                    <Editor
+                        documentId={gameId}
+                        onFetch={handleFetch}
+                        onSave={handleSave}
+                    />
+                )}
             </div>
         </UserProvider.Provider>
     );

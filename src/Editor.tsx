@@ -15,6 +15,7 @@ import AnnotationsJSONPrinter from "./AnnotationsJSONPrinter";
 import FloatingAnnotations from "./FloatingAnnotations";
 import useCurrentUser from "./hooks/useCurrentUser";
 import useObservableListener from "./hooks/useObservableListener";
+import { useRestProvider } from "./hooks/useRestProvider";
 import useWebRtcProvider from "./hooks/useWebRtcProvider";
 import { generateOutput, rules } from "./utils/challenge";
 
@@ -33,7 +34,8 @@ const Status = ({ success = false }) => (
 function Editor({ documentId, onFetch, onSave }: EditorProps) {
     const usedFallbackRef = useRef<boolean>(false);
     const currentUser = useCurrentUser();
-    const provider = useWebRtcProvider(currentUser, documentId);
+    // const provider = useWebRtcProvider(currentUser, documentId);
+    const provider = useRestProvider(documentId);
 
     const [clientCount, setClientCount] = useState<number>(0);
     const [isSynced, setIsSynced] = useState<boolean>(false);

@@ -34,18 +34,15 @@ export default class RestProvider extends Observable<string> {
     connect() {
         console.log("connecting");
         this.connected = true;
-        this.pollingInterval = setInterval(() => {
-            fetch(`http://localhost:3001/document/${this.doc.guid}`, {
-                mode: "no-cors",
-            })
-                .then((response) => {
-                    console.log(response);
-                    return response.arrayBuffer();
-                })
-                .then((buffer) => {
-                    console.log("buffer", buffer);
-                });
-        }, 5000);
+        this.pollingInterval = setInterval(async () => {
+            const res = await fetch(
+                `http://localhost:3001/document/${this.doc.guid}`
+            );
+            const buffer = await res.arrayBuffer();
+            const update = new Uint8Array(buffer);
+
+            applyUpdate(this.doc, update, this);
+        }, 1000);
     }
     disconnect() {
         console.log("disconnect");
@@ -54,7 +51,6 @@ export default class RestProvider extends Observable<string> {
     }
 
     private handleUpdate(update: Uint8Array) {
-        console.log(this);
         applyUpdate(this.doc, update, this);
 
         const body = encodeStateAsUpdate(this.doc);
@@ -63,14 +59,16 @@ export default class RestProvider extends Observable<string> {
 
         fetch(`http://localhost:3001/document/${this.doc.guid}`, {
             method: "POST",
-            mode: "no-cors",
+
             headers: {
                 "Content-Type": "application/octet-stream",
                 Accept: "application/json",
             },
             body,
-        }).then((response) => {
-            console.log(response);
-        });
+        })
+            .then((response) => response.json())
+            .then((result) => {
+                console.log(result);
+            });
     }
 }

@@ -1,7 +1,11 @@
 import { Buffer } from "buffer";
 import Fastify from "fastify";
+import cors from "fastify-cors";
 
 const fastify = Fastify({ logger: true });
+fastify.register(cors, {
+  origin: "*",
+});
 
 const docs = {};
 
@@ -36,11 +40,15 @@ fastify.get("/document/:documentId", (request, reply) => {
   reply.send(buffer);
 });
 
-fastify.addContentTypeParser("*", { parseAs: "buffer" }, (_, payload, done) => {
-  console.log("payload", payload);
-  const doc = new Uint8Array(payload);
-  done(null, doc);
-});
+fastify.addContentTypeParser(
+  "application/octet-stream",
+  { parseAs: "buffer" },
+  (_, payload, done) => {
+    console.log("payload", payload);
+    const doc = new Uint8Array(payload);
+    done(null, doc);
+  }
+);
 
 const start = async () => {
   try {

@@ -36,7 +36,7 @@ export default class RestProvider extends Observable<string> {
         this.connected = true;
         this.pollingInterval = setInterval(async () => {
             const res = await fetch(
-                `http://localhost:3001/document/${this.doc.guid}`
+                `//localhost:3001/document/${this.doc.guid}`
             );
             const buffer = await res.arrayBuffer();
             const update = new Uint8Array(buffer);
@@ -57,7 +57,7 @@ export default class RestProvider extends Observable<string> {
 
         applyUpdate(this.doc, body, this);
 
-        fetch(`http://localhost:3001/document/${this.doc.guid}`, {
+        fetch(`//localhost:3001/document/${this.doc.guid}`, {
             method: "POST",
 
             headers: {

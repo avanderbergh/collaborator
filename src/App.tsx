@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { v4 as uuid } from "uuid";
 import Editor from "./Editor";
 import UserProvider, { User } from "./UserProvider";
@@ -12,14 +12,6 @@ function App() {
             id,
             name: getRandomUserName(id),
         };
-    }, []);
-
-    const handleFetch = useCallback(async (id) => {
-        return {};
-    }, []);
-
-    const handleSave = useCallback(async (id, body) => {
-        return;
     }, []);
 
     const [gameId, setGameId] = useState("");
@@ -51,13 +43,7 @@ function App() {
                     />
                     <button onClick={joinGame}>Join Game</button>
                 </div>
-                {gameId.length > 0 && (
-                    <Editor
-                        documentId={gameId}
-                        onFetch={handleFetch}
-                        onSave={handleSave}
-                    />
-                )}
+                {gameId.length > 0 && <Editor documentId={gameId} />}
             </div>
         </UserProvider.Provider>
     );

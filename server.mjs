@@ -52,7 +52,7 @@ fastify.addContentTypeParser(
 
 const start = async () => {
   try {
-    await fastify.listen(3001);
+    await fastify.listen(3001, "192.168.2.20");
   } catch {
     fastify.log.error(err);
     process.exit(1);

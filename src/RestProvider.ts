@@ -1,6 +1,7 @@
 import { Doc, applyUpdate, encodeStateAsUpdate } from "yjs";
 import { Observable } from "lib0/observable";
 import awarenessProtocal from "y-protocols/awareness";
+import { DebouncedFunc, throttle } from "lodash";
 
 export default class RestProvider extends Observable<string> {
     constructor(
@@ -31,17 +32,40 @@ export default class RestProvider extends Observable<string> {
     awareness: awarenessProtocal.Awareness | null;
     connected = false;
     pollingInterval!: NodeJS.Timer;
+    postChanges!: DebouncedFunc<(body: any) => void>;
+
     connect() {
         console.log("connecting");
         this.connected = true;
+
         this.pollingInterval = setInterval(async () => {
             const res = await fetch(
-                `//localhost:3001/document/${this.doc.guid}`
+                `//${window.location.hostname}:3001/document/${this.doc.guid}`,
+                { referrer: "" }
             );
             const buffer = await res.arrayBuffer();
             const update = new Uint8Array(buffer);
 
             applyUpdate(this.doc, update, this);
+        }, 1000);
+
+        this.postChanges = throttle((body) => {
+            fetch(
+                `//${window.location.hostname}:3001/document/${this.doc.guid}`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/octet-stream",
+                        Accept: "application/json",
+                    },
+                    body,
+                }
+            )
+                .then((response) => response.json())
+                .then((result) => {
+                    console.log(result);
+                });
         }, 1000);
     }
     disconnect() {
@@ -57,18 +81,6 @@ export default class RestProvider extends Observable<string> {
 
         applyUpdate(this.doc, body, this);
 
-        fetch(`//localhost:3001/document/${this.doc.guid}`, {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/octet-stream",
-                Accept: "application/json",
-            },
-            body,
-        })
-            .then((response) => response.json())
-            .then((result) => {
-                console.log(result);
-            });
+        this.postChanges(body);
     }
 }
